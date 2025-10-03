@@ -5,6 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import configs from './config.json';
 import fs from 'fs';
+import mime from 'mime-types';
 
 const storageFolder: string = configs.storageFolder.replaceAll('$CWD', process.cwd())
 if (!fs.existsSync(storageFolder)) fs.mkdirSync(storageFolder, { recursive: true });
@@ -76,13 +77,27 @@ app.get('/:filename', (req, res) => {
     '.svg': 'image/svg+xml',
     '.txt': 'text/plain',
     '.html': 'text/html',
+    // fallback for other types will be handled below
   };
   const ext = path.extname(originalFileName).toLowerCase();
-  const mimeType = mimeTypes[ext] || 'application/octet-stream';
+  const mimeType: string = mimeTypes[ext] || mime.lookup(originalFileName) || 'application/octet-stream';
 
-  // Use regex to match inline types
-  const inlineRegex = /^(video\/|audio\/|image\/|application\/pdf|text\/plain|text\/html)/;
-  const isInline = inlineRegex.test(mimeType);
+  // Inline if text/* or browser-supported application types
+  const isInline = (
+    mimeType.startsWith('text/') ||
+    [
+      'application/pdf',
+      'application/json',
+      'application/xml',
+      'application/javascript',
+      'application/typescript',
+      'text/html',
+      'image/svg+xml'
+    ].includes(mimeType) ||
+    mimeType.startsWith('video/') ||
+    mimeType.startsWith('audio/') ||
+    mimeType.startsWith('image/')
+  );
 
   res.status(200);
   res.setHeader('Content-Type', mimeType);

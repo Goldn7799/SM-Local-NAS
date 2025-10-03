@@ -217,11 +217,50 @@
           dirPathDiv.innerHTML = '<p>No files or directories found.</p>';
           return;
         }
-        dirPathDiv.innerHTML = '<ul>' + data.map((item) => {
-          return `<li class="file-list-item" onClick="window.location.href = '/${item.filename.replaceAll(' ', '%20')}' ">${item.filename}<span class="file-size">${formatSize(item.size)}</span></li>`;
+        dirPathDiv.innerHTML = '<ul id="fileListUL">' + data.map((item) => {
+          const fileUrl = `/${item.filename.replaceAll(' ', '%20')}`;
+          return `<li class="file-list-item" data-url="${fileUrl}">${item.filename}<span class="file-size">${formatSize(item.size)}</span></li>`;
         }).join('') + '</ul>';
-      });
-    }
+
+        // Add event listeners for click and right-click
+        const fileListUL = document.getElementById('fileListUL');
+        fileListUL.querySelectorAll('li.file-list-item').forEach(li => {
+            li.addEventListener('click', function(e) {
+              window.location.href = li.getAttribute('data-url');
+            });
+            li.addEventListener('contextmenu', function(e) {
+              e.preventDefault();
+              const url = window.location.origin + li.getAttribute('data-url');
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                  alert('Link copied to clipboard!');
+                }).catch(() => {
+                  fallbackCopyTextToClipboard(url);
+                });
+              } else {
+                fallbackCopyTextToClipboard(url);
+              }
+            });
+        });
+
+        // Fallback for clipboard API
+        function fallbackCopyTextToClipboard(text) {
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          try {
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+          } catch (err) {
+            alert('Failed to copy link.');
+          }
+          document.body.removeChild(textArea);
+        }
+        });
+      };
+    updateDir();
     updateDir();
   </script>
 </body>
