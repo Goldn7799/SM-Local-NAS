@@ -63,28 +63,14 @@ app.get('/:filename', (req, res) => {
 
   const filePath = path.join(storageFolder, originalFileName);
   // Use built-in Node.js or a simple map for common types
-  const mimeTypes: Record<string, string> = {
-    '.mp4': 'video/mp4',
-    '.webm': 'video/webm',
-    '.ogg': 'video/ogg',
-    '.mp3': 'audio/mpeg',
-    '.wav': 'audio/wav',
-    '.pdf': 'application/pdf',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.txt': 'text/plain',
-    '.html': 'text/html',
-    // fallback for other types will be handled below
-  };
-  const ext = path.extname(originalFileName).toLowerCase();
-  const mimeType: string = mimeTypes[ext] || mime.lookup(originalFileName) || 'application/octet-stream';
+  const mimeType = mime.lookup(originalFileName) || 'application/octet-stream';
 
-  // Inline if text/* or browser-supported application types
+  // Inline if text/*, video/*, audio/*, image/*, or common browser-supported application types
   const isInline = (
     mimeType.startsWith('text/') ||
+    mimeType.startsWith('video/') ||
+    mimeType.startsWith('audio/') ||
+    mimeType.startsWith('image/') ||
     [
       'application/pdf',
       'application/json',
@@ -93,10 +79,7 @@ app.get('/:filename', (req, res) => {
       'application/typescript',
       'text/html',
       'image/svg+xml'
-    ].includes(mimeType) ||
-    mimeType.startsWith('video/') ||
-    mimeType.startsWith('audio/') ||
-    mimeType.startsWith('image/')
+    ].includes(mimeType)
   );
 
   res.status(200);
