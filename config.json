@@ -1,0 +1,7 @@
+{
+  "port": 2025,
+  "origin": "*",
+  "limitJSON": "10mb",
+  "uploadLimitGB": 100,
+  "storageFolder": "$CWD/PublicStorage"
+}
