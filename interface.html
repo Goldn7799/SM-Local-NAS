@@ -6,12 +6,210 @@
   <title>Document</title>
 </head>
 <body>
-  <style></style>
+  <style>
+    .toolBar {
+      display: flex;
+      align-items: center;
+      background: #222;
+      border-radius: 10px;
+      padding: 16px 24px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      gap: 24px;
+      width: fit-content;
+    }
+    #uploadForm {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #fileInput {
+      background: #444;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 1em;
+      width: 220px;
+      cursor: pointer;
+    }
+    #uploadButton {
+      background: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 18px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #uploadButton:hover {
+      background: #388e3c;
+    }
+    #progressBarContainer {
+  width: 40px;
+  height: 40px;
+  position: relative;
+  display: none;
+  align-items: center;
+  justify-content: center;
+    }
+    .circle-bg {
+      fill: none;
+      stroke: #444;
+      stroke-width: 5;
+    }
+    .circle {
+      fill: none;
+      stroke: #4caf50;
+      stroke-width: 5;
+      stroke-linecap: round;
+      transition: stroke-dasharray 0.3s;
+    }
+    #progressText {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 0.9em;
+      font-weight: bold;
+      pointer-events: none;
+    }
+    .file-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .file-size {
+      margin-left: 20px;
+      color: #888;
+      font-size: 0.95em;
+      min-width: 80px;
+      text-align: right;
+    }
+    body {
+      background-color: #333;
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #dirPath {
+      width: 100%;
+      height: 80vh;
+    }
+    
+    ul {
+      list-style-type: none;
+      padding: 10px;
+      border-radius: 10px;
+      background-color: rgb(20, 20, 20);
+      height: 100%;
+      overflow-y: scroll;
+      /* Custom scrollbar styles */
+      scrollbar-width: thin;
+      scrollbar-color: #444 #181818;
+    }
+    ul::-webkit-scrollbar {
+      width: 10px;
+      background: #181818;
+      border-radius: 10px;
+    }
+    ul::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 10px;
+      border: 2px solid #181818;
+    }
+    ul::-webkit-scrollbar-thumb:hover {
+      background: #666;
+    }
+    li {
+      background: #f4f4f4;
+      margin: 5px 0;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    li:hover {
+      background: #e2e2e2;
+      color: blue;
+    }
+  </style>
 
+  <div class="toolBar">
+    <form id="uploadForm">
+      <input type="file" name="uploaded_file" id="fileInput" required>
+      <button type="submit" id="uploadButton">Upload</button>
+    </form>
+    <div id="progressBarContainer">
+      <svg width="40" height="40">
+        <circle class="circle-bg" cx="20" cy="20" r="16" />
+        <circle class="circle" cx="20" cy="20" r="16" stroke-dasharray="0 100" />
+      </svg>
+      <span id="progressText">0%</span>
+    </div>
+  </div>
   <div id="dirPath"></div>
 
   <script type="module">
-    fetch('/dirpath')
+    // Upload with progress and circular progress bar
+    const uploadForm = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('fileInput');
+    const progressCircle = document.querySelector('.circle');
+    const progressText = document.getElementById('progressText');
+    const RADIUS = 16;
+    const CIRCUM = 2 * Math.PI * RADIUS;
+    progressCircle.setAttribute('stroke-dasharray', `0 ${CIRCUM}`);
+
+    const progressBarContainer = document.getElementById('progressBarContainer');
+    uploadForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const file = fileInput.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('uploaded_file', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/');
+      // Show progress bar
+      progressBarContainer.style.display = 'flex';
+      xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          const dash = (percent / 100) * CIRCUM;
+          progressCircle.setAttribute('stroke-dasharray', `${dash} ${CIRCUM}`);
+          progressText.textContent = percent + '%';
+        }
+      };
+      xhr.onload = function() {
+        progressCircle.setAttribute('stroke-dasharray', `0 ${CIRCUM}`);
+        progressText.textContent = '0%';
+        progressBarContainer.style.display = 'none';
+        if (xhr.status === 200) {
+          updateDir();
+        } else {
+          alert('Upload failed. Please try again.');
+        }
+      };
+      xhr.onerror = function() {
+        progressBarContainer.style.display = 'none';
+        alert('Connection lost or upload error.');
+      };
+      xhr.send(formData);
+    });
+
+    function formatSize(size) {
+      if (size >= 1024 * 1024 * 1024) {
+        return (size / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+      } else if (size >= 1024 * 1024) {
+        return (size / (1024 * 1024)).toFixed(2) + ' MB';
+      } else if (size >= 1024) {
+        return (size / 1024).toFixed(2) + ' KB';
+      } else {
+        return size + ' B';
+      }
+    }
+
+    const updateDir = () => {
+      fetch('/dirpath')
       .then(response => response.json())
       .then(data => {
         const dirPathDiv = document.getElementById('dirPath');
@@ -19,8 +217,12 @@
           dirPathDiv.innerHTML = '<p>No files or directories found.</p>';
           return;
         }
-        dirPathDiv.innerHTML = '<ul>' + data.map((item) => `<li>${item}</li>`).join('') + '</ul>';
+        dirPathDiv.innerHTML = '<ul>' + data.map((item) => {
+          return `<li class="file-list-item" onClick="window.location.href = '/${item.filename.replaceAll(' ', '%20')}' ">${item.filename}<span class="file-size">${formatSize(item.size)}</span></li>`;
+        }).join('') + '</ul>';
       });
+    }
+    updateDir();
   </script>
 </body>
 </html>

@@ -39,8 +39,19 @@ app.get('/', (req, res) => {
 
 app.get('/dirpath', (req, res) => {
   const rawDir: string[] = fs.readdirSync(storageFolder);
+  const fileList = rawDir.map((filename) => {
+    const filePath = path.join(storageFolder, filename);
+    let size = 0;
+    try {
+      const stat = fs.statSync(filePath);
+      size = stat.size;
+    } catch {
+      size = 0;
+    }
+    return { filename, size };
+  });
   res.status(200)
-  .json(rawDir);
+    .json(fileList);
 })
 
 app.get('/:filename', (req, res) => {
@@ -48,8 +59,39 @@ app.get('/:filename', (req, res) => {
   const originalFileName: string = filename.replaceAll('%20', ' ');
   const rawDir: string[] = fs.readdirSync(storageFolder);
   if (!rawDir.includes(originalFileName)) return res.status(404);
-  res.status(200)
-  .sendFile(`${storageFolder}/${originalFileName}`);
+
+  const filePath = path.join(storageFolder, originalFileName);
+  // Use built-in Node.js or a simple map for common types
+  const mimeTypes: Record<string, string> = {
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.ogg': 'video/ogg',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.pdf': 'application/pdf',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.txt': 'text/plain',
+    '.html': 'text/html',
+  };
+  const ext = path.extname(originalFileName).toLowerCase();
+  const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+  // Use regex to match inline types
+  const inlineRegex = /^(video\/|audio\/|image\/|application\/pdf|text\/plain|text\/html)/;
+  const isInline = inlineRegex.test(mimeType);
+
+  res.status(200);
+  res.setHeader('Content-Type', mimeType);
+  if (isInline) {
+    res.setHeader('Content-Disposition', `inline; filename="${originalFileName}"`);
+  } else {
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+  }
+  res.sendFile(filePath);
 })
 
 app.post('/', upload.single('uploaded_file'), (req, res) => {
