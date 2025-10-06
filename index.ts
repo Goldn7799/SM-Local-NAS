@@ -61,6 +61,9 @@ app.get('/:filename', (req, res) => {
   const { filename } = req.params;
   const originalFileName = filename.replaceAll('%20', ' ');
   const filePath = path.join(storageFolder, originalFileName);
+  // Log user IP and requested file
+  const userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+  console.log(`[GET] File: ${originalFileName} | From IP: ${userIp}`);
   if (!fs.existsSync(filePath)) return res.status(404).end();
 
   // Use custom MIME type overrides if provided
@@ -93,7 +96,8 @@ app.get('/:filename', (req, res) => {
 
 app.post('/', upload.single('uploaded_file'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file choosen or File Limit reached.' });
-  console.log(`File Successfully Saved: `, req.file);
+  const userIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+  console.log(`File Successfully Saved from ${userIp}: `, req.file);
   res.status(200)
   .json({
     message: 'File successfully Uploaded.',
