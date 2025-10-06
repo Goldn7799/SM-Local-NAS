@@ -47,12 +47,20 @@
       background: #388e3c;
     }
     #progressBarContainer {
-  width: 40px;
-  height: 40px;
-  position: relative;
-  display: none;
-  align-items: center;
-  justify-content: center;
+      width: 40px;
+      height: 40px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #progressBarGroup {
+      display: none;
+      flex-direction: row;
+      color: whitesmoke;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
     }
     .circle-bg {
       fill: none;
@@ -133,6 +141,15 @@
       background: #e2e2e2;
       color: blue;
     }
+    .itemLength {
+      width: fit-content;
+      color: #5c5b5b;
+      font-size: 1em;
+      margin-bottom: 8px;
+    }
+    .itemLength:hover {
+      color: rgb(94, 153, 0);
+    }
   </style>
 
   <div class="toolBar">
@@ -140,12 +157,15 @@
       <input type="file" name="uploaded_file" id="fileInput" required>
       <button type="submit" id="uploadButton">Upload</button>
     </form>
-    <div id="progressBarContainer">
-      <svg width="40" height="40">
-        <circle class="circle-bg" cx="20" cy="20" r="16" />
-        <circle class="circle" cx="20" cy="20" r="16" stroke-dasharray="0 100" />
-      </svg>
-      <span id="progressText">0%</span>
+    <div id="progressBarGroup">
+      <div id="progressBarContainer">
+        <svg width="40" height="40">
+          <circle class="circle-bg" cx="20" cy="20" r="16" />
+          <circle class="circle" cx="20" cy="20" r="16" stroke-dasharray="0 100" />
+        </svg>
+        <span id="progressText">0%</span>
+      </div>
+      <p id="sizeUploadedNSpeed">0Mb / 0Mb | 0Mb/s</p>
     </div>
   </div>
   <div id="dirPath"></div>
@@ -156,11 +176,12 @@
     const fileInput = document.getElementById('fileInput');
     const progressCircle = document.querySelector('.circle');
     const progressText = document.getElementById('progressText');
+    const sizeUploadedNSpeed = document.getElementById('sizeUploadedNSpeed');
+    const progressBarGroup = document.getElementById('progressBarGroup');
     const RADIUS = 16;
     const CIRCUM = 2 * Math.PI * RADIUS;
     progressCircle.setAttribute('stroke-dasharray', `0 ${CIRCUM}`);
 
-    const progressBarContainer = document.getElementById('progressBarContainer');
     uploadForm.addEventListener('submit', function(e) {
       e.preventDefault();
       const file = fileInput.files[0];
@@ -169,20 +190,32 @@
       formData.append('uploaded_file', file);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/');
-      // Show progress bar
-      progressBarContainer.style.display = 'flex';
+      progressBarGroup.style.display = 'flex';
+      let lastTime = Date.now();
+      let lastLoaded = 0;
       xhr.upload.onprogress = function(e) {
         if (e.lengthComputable) {
           const percent = Math.round((e.loaded / e.total) * 100);
           const dash = (percent / 100) * CIRCUM;
           progressCircle.setAttribute('stroke-dasharray', `${dash} ${CIRCUM}`);
           progressText.textContent = percent + '%';
+          const now = Date.now();
+          let speed = '';
+          if (now - lastTime > 0) {
+            const bytesPerSec = (e.loaded - lastLoaded) / ((now - lastTime) / 1000);
+            speed = formatSize(bytesPerSec) + '/s';
+            lastTime = now;
+            lastLoaded = e.loaded;
+          }
+          sizeUploadedNSpeed.textContent = `${formatSize(e.loaded)} / ${formatSize(e.total)} | ${speed}`;
         }
       };
       xhr.onload = function() {
         progressCircle.setAttribute('stroke-dasharray', `0 ${CIRCUM}`);
         progressText.textContent = '0%';
-        progressBarContainer.style.display = 'none';
+        sizeUploadedNSpeed.textContent = '0Mb/0Mb | 0Mb/s';
+        progressBarGroup.style.display = 'none';
+        fileInput.value = '';
         if (xhr.status === 200) {
           updateDir();
         } else {
@@ -190,7 +223,7 @@
         }
       };
       xhr.onerror = function() {
-        progressBarContainer.style.display = 'none';
+        progressBarGroup.style.display = 'none';
         alert('Connection lost or upload error.');
       };
       xhr.send(formData);
@@ -210,25 +243,29 @@
 
     const updateDir = () => {
       fetch('/dirpath')
-      .then(response => response.json())
-      .then(data => {
-        const dirPathDiv = document.getElementById('dirPath');
-        if (data.length === 0) {
-          dirPathDiv.innerHTML = '<p>No files or directories found.</p>';
-          return;
-        }
-        dirPathDiv.innerHTML = '<ul id="fileListUL">' + data.map((item) => {
-          const fileUrl = `/${item.filename.replaceAll(' ', '%20')}`;
-          return `<li class="file-list-item" data-url="${fileUrl}">${item.filename}<span class="file-size">${formatSize(item.size)}</span></li>`;
-        }).join('') + '</ul>';
+        .then(response => response.json())
+        .then(data => {
+          const dirPathDiv = document.getElementById('dirPath');
+          if (data.length === 0) {
+            dirPathDiv.innerHTML = '<ul><p style="color: white;">No files or directories found.</p></ul>';
+            return;
+          }
+          let totalSizeFile = 0;
+          for (const item of data) {
+            totalSizeFile += item.size;
+          }
+          dirPathDiv.innerHTML = '<ul id="fileListUL">' + `<li class="itemLength">${data.length} Items | ${formatSize(totalSizeFile)}</li>` + data.map((item) => {
+            const fileUrl = `/${item.filename.replaceAll(' ', '%20')}`;
+            return `<li class="file-list-item" data-url="${fileUrl}">${item.filename}<span class="file-size">(${item.mimeType}) ${formatSize(item.size)}</span></li>`;
+          }).join('') + '</ul>';
 
-        // Add event listeners for click and right-click
-        const fileListUL = document.getElementById('fileListUL');
-        fileListUL.querySelectorAll('li.file-list-item').forEach(li => {
-            li.addEventListener('click', function(e) {
+          // Add event listeners for click and right-click
+          const fileListUL = document.getElementById('fileListUL');
+          fileListUL.querySelectorAll('li.file-list-item').forEach(li => {
+            li.addEventListener('click', function () {
               window.location.href = li.getAttribute('data-url');
             });
-            li.addEventListener('contextmenu', function(e) {
+            li.addEventListener('contextmenu', function (e) {
               e.preventDefault();
               const url = window.location.origin + li.getAttribute('data-url');
               if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -241,26 +278,25 @@
                 fallbackCopyTextToClipboard(url);
               }
             });
-        });
+          });
 
-        // Fallback for clipboard API
-        function fallbackCopyTextToClipboard(text) {
-          const textArea = document.createElement('textarea');
-          textArea.value = text;
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-          try {
-            document.execCommand('copy');
-            alert('Link copied to clipboard!');
-          } catch (err) {
-            alert('Failed to copy link.');
+          // Fallback for clipboard API
+          function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+              document.execCommand('copy');
+              alert('Link copied to clipboard!');
+            } catch (err) {
+              alert('Failed to copy link.');
+            }
+            document.body.removeChild(textArea);
           }
-          document.body.removeChild(textArea);
-        }
         });
-      };
-    updateDir();
+    };
     updateDir();
   </script>
 </body>

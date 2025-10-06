@@ -3,5 +3,9 @@
   "origin": "*",
   "limitJSON": "10mb",
   "uploadLimitGB": 100,
-  "storageFolder": "$CWD/PublicStorage"
+  "storageFolder": "$CWD/PublicStorage",
+  "mimeTypeOverride": {
+    ".mp4": "video/mp4",
+    ".mkv": "video/mp4"
+  }
 }

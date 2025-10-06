@@ -7,8 +7,10 @@ import configs from './config.json';
 import fs from 'fs';
 import mime from 'mime-types';
 
-const storageFolder: string = configs.storageFolder.replaceAll('$CWD', process.cwd())
-if (!fs.existsSync(storageFolder)) fs.mkdirSync(storageFolder, { recursive: true });
+const storageFolder: string = configs.storageFolder.replaceAll('$CWD', process.cwd());
+if (!fs.existsSync(storageFolder)) {
+  fs.mkdirSync(storageFolder, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -49,23 +51,24 @@ app.get('/dirpath', (req, res) => {
     } catch {
       size = 0;
     }
-    return { filename, size };
+    const mimeType = mime.lookup(filename) || 'application/octet-stream';
+    return { filename, size, mimeType };
   });
-  res.status(200)
-    .json(fileList);
-})
+  res.status(200).json(fileList);
+});
 
 app.get('/:filename', (req, res) => {
   const { filename } = req.params;
-  const originalFileName: string = filename.replaceAll('%20', ' ');
-  const rawDir: string[] = fs.readdirSync(storageFolder);
-  if (!rawDir.includes(originalFileName)) return res.status(404);
-
+  const originalFileName = filename.replaceAll('%20', ' ');
   const filePath = path.join(storageFolder, originalFileName);
-  // Use built-in Node.js or a simple map for common types
-  const mimeType = mime.lookup(originalFileName) || 'application/octet-stream';
+  if (!fs.existsSync(filePath)) return res.status(404).end();
 
-  // Inline if text/*, video/*, audio/*, image/*, or common browser-supported application types
+  // Use custom MIME type overrides if provided
+  const mimeTypes: Record<string, string> = configs.mimeTypeOverride || {};
+  const ext = path.extname(originalFileName).toLowerCase();
+  const mimeType = mimeTypes[ext] || mime.lookup(originalFileName) || 'application/octet-stream';
+
+  // Only allow safe types inline
   const isInline = (
     mimeType.startsWith('text/') ||
     mimeType.startsWith('video/') ||
@@ -84,13 +87,9 @@ app.get('/:filename', (req, res) => {
 
   res.status(200);
   res.setHeader('Content-Type', mimeType);
-  if (isInline) {
-    res.setHeader('Content-Disposition', `inline; filename="${originalFileName}"`);
-  } else {
-    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
-  }
+  res.setHeader('Content-Disposition', `${isInline ? 'inline' : 'attachment'}; filename="${originalFileName}"`);
   res.sendFile(filePath);
-})
+});
 
 app.post('/', upload.single('uploaded_file'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file choosen or File Limit reached.' });
