@@ -27,6 +27,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache
 *.tsbuildinfo
 publicStorage
+*.zip
+gdeno.exe
+deno.lock
+SM*
+-nxf
 
 # IntelliJ based IDEs
 .idea

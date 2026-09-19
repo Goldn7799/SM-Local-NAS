@@ -1,11 +1,12 @@
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import multer from 'multer';
-import path from 'path';
-import configs from './config.json';
-import fs from 'fs';
-import mime from 'mime-types';
+import express from 'npm:express';
+import cors from 'npm:cors';
+import bodyParser from 'npm:body-parser';
+import multer from 'npm:multer';
+import path from 'node:path';
+import configs from './config.json' with { type: "json" };
+import fs from 'node:fs';
+import mime from 'npm:mime-types';
+const htmlPath = new URL("./interface.html", import.meta.url);
 
 const storageFolder: string = configs.storageFolder.replaceAll('$CWD', process.cwd());
 if (!fs.existsSync(storageFolder)) {
@@ -35,9 +36,9 @@ app.use(bodyParser.json({
   limit: configs.limitJSON
 }))
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
   res.status(200)
-  .sendFile(path.join(process.cwd(), 'interface.html'));
+  .send(await Deno.readTextFile(htmlPath));
 })
 
 app.get('/dirpath', (req, res) => {

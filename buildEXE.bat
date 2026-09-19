@@ -1,0 +1,1 @@
+deno compile --allow-net --allow-read --allow-write --no-check --allow-env --allow-sys --target x86_64-pc-windows-msvc --include interface.html --output SM_Local-NAS.exe index.ts

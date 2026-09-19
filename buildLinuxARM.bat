@@ -1,0 +1,1 @@
+deno compile --allow-net --allow-read --allow-write --no-check --allow-env --allow-sys --target aarch64-unknown-linux-gnu --include interface.html --output SM_Local-NAS index.ts
